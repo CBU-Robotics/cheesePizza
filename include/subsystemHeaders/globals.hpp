@@ -4,10 +4,10 @@
 extern pros::Controller master;
 
 //Declare drivebase motors
-pros::Motor leftFrontWheel;
-pros::Motor rightFrontWheel;
-pros::Motor leftBackWheel;
-pros::Motor rightBackWheel;
+extern pros::Motor leftFrontWheel;
+extern pros::Motor rightFrontWheel;
+extern pros::Motor leftBackWheel;
+extern pros::Motor rightBackWheel;
 
 //Declare drivebase motor groups
 extern pros::Motor_Group leftWheels;

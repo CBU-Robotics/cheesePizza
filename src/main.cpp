@@ -58,8 +58,12 @@ void opcontrol() {
 	pros::Controller master(pros::E_CONTROLLER_MASTER);
 
 	while (true) {
-		leftWheels = master.get_analog(ANALOG_LEFT_Y);
-		rightWheels = master.get_analog(ANALOG_RIGHT_Y);
+		int left = master.get_analog(ANALOG_LEFT_Y);
+		int right = master.get_analog(ANALOG_RIGHT_Y);
+
+		leftWheels = left;
+		rightWheels = right;
+
 		pros::delay(20);
 	}
 }
