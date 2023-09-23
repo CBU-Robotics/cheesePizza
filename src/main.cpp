@@ -5,7 +5,7 @@ const int TOP_RIGHT_MOTOR_PORT = 1;
 const int BOTTOM_LEFT_MOTOR_PORT = 20;
 const int BOTTOM_RIGHT_MOTOR_PORT = 10;
 const int VEX_MAX_VOLTAGE = 12000; // Don't use
-const int MAX_VOLTAGE = VEX_MAX_VOLTAGE - 2000;
+const int MAX_VOLTAGE = VEX_MAX_VOLTAGE - 4000;
 
 void initialize() {
 	pros::lcd::initialize();
@@ -38,15 +38,34 @@ void opcontrol() {
 		// x- left -- right ++
 		// y+ left ++ right ++
 		// y- left -- right --
-
-		if (x == 0) {
+		if (x == 0 && y == 0) {
 			left_group.move_voltage(0);
+			right_group.move_voltage(0);
+			pros::lcd::print(0, "%d %d %d", 0, 0, 0);
 		}
 		else {
-			left_group.move_voltage(x > 0 ? MAX_VOLTAGE : -MAX_VOLTAGE);
-		}
+			double angle = atan2(y, x);
 
-		pros::lcd::print(0, "%d %d %d", x, y);
+			// cos and sin return between -1 and 1
+			double voltage_x = cos(angle) * MAX_VOLTAGE;
+			double voltage_y = sin(angle) * MAX_VOLTAGE;
+
+			int voltage_left = 0;
+			int voltage_right = 0;
+
+			// y
+			voltage_left += voltage_y;
+			voltage_right += voltage_y;
+
+			// x
+			voltage_left += voltage_x;
+			voltage_right -= voltage_x;
+
+			left_group.move_voltage(voltage_left);
+			right_group.move_voltage(voltage_right);
+
+			pros::lcd::print(0, "%d %d %d", static_cast<int>(angle), static_cast<int>(voltage_x), static_cast<int>(voltage_y));
+		}
 		pros::delay(20);
 	}
 }
