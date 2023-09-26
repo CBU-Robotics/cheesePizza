@@ -19,10 +19,10 @@ void autonomous() {}
 
 void opcontrol() {
 	pros::Controller master(pros::E_CONTROLLER_MASTER);
-	pros::Motor top_left_motor(TOP_LEFT_MOTOR_PORT, pros::E_MOTOR_GEAR_200);
-	pros::Motor top_right_motor(TOP_RIGHT_MOTOR_PORT, pros::E_MOTOR_GEAR_200);
-	pros::Motor bottom_left_motor(BOTTOM_LEFT_MOTOR_PORT, pros::E_MOTOR_GEAR_200);
-	pros::Motor bottom_right_motor(BOTTOM_RIGHT_MOTOR_PORT, pros::E_MOTOR_GEAR_200);
+	pros::Motor top_left_motor(TOP_LEFT_MOTOR_PORT, pros::E_MOTOR_GEAR_200, false);
+	pros::Motor top_right_motor(TOP_RIGHT_MOTOR_PORT, pros::E_MOTOR_GEAR_200, true);
+	pros::Motor bottom_left_motor(BOTTOM_LEFT_MOTOR_PORT, pros::E_MOTOR_GEAR_200, false);
+	pros::Motor bottom_right_motor(BOTTOM_RIGHT_MOTOR_PORT, pros::E_MOTOR_GEAR_200, true);
 
 	pros::Motor_Group left_group({ top_left_motor, bottom_left_motor });
 	pros::Motor_Group right_group({ top_right_motor, bottom_right_motor });
@@ -34,10 +34,6 @@ void opcontrol() {
 		int x = master.get_analog(ANALOG_RIGHT_X);
 		int y = master.get_analog(ANALOG_RIGHT_Y);
 
-		// x+ left ++ right --
-		// x- left -- right ++
-		// y+ left ++ right ++
-		// y- left -- right --
 		if (x == 0 && y == 0) {
 			left_group.move_voltage(0);
 			right_group.move_voltage(0);
