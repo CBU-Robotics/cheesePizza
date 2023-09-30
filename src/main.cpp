@@ -85,7 +85,7 @@ void opcontrol() {
 
   while (true) {
     //keep at start of while loop, this keeps track of time each loop takes
-    deltaT = pros::millis(); - timeCounter;
+    deltaT = pros::millis() - timeCounter;
     timeCounter = pros::millis();
 
     int driveLeftSet = master.get_analog(ANALOG_LEFT_Y);
@@ -95,8 +95,8 @@ void opcontrol() {
     rightSlew = setSlew (driveRightSet, rightSlew);
 
     if (master.is_connected()) {
-        leftWheels = leftSlew.motorValue * master.get_analog(ANALOG_LEFT_Y);
-        rightWheels = rightSlew.motorValue * master.get_analog(ANALOG_RIGHT_Y);
+        leftWheels = leftSlew.motorValue;
+        rightWheels = rightSlew.motorValue;
     }
     pros::delay(5);
   }
