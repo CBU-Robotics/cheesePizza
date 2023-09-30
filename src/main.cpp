@@ -1,69 +1,103 @@
 #include "main.h"
 
-/**
- * Runs initialization code. This occurs as soon as the program is started.
- *
- * All other competition modes are blocked by initialize; it is recommended
- * to keep execution time for this mode under a few seconds.
- */
 void initialize() {
 	pros::lcd::initialize();
+	
 }
 
-/**
- * Runs while the robot is in the disabled state of Field Management System or
- * the VEX Competition Switch, following either autonomous or opcontrol. When
- * the robot is enabled, this task will exit.
- */
 void disabled() {}
 
-/**
- * Runs after initialize(), and before autonomous when connected to the Field
- * Management System or the VEX Competition Switch. This is intended for
- * competition-specific initialization routines, such as an autonomous selector
- * on the LCD.
- *
- * This task will exit when the robot is enabled and autonomous or opcontrol
- * starts.
- */
 void competition_initialize() {}
 
-/**
- * Runs the user autonomous code. This function will be started in its own task
- * with the default priority and stack size whenever the robot is enabled via
- * the Field Management System or the VEX Competition Switch in the autonomous
- * mode. Alternatively, this function may be called in initialize or opcontrol
- * for non-competition testing purposes.
- *
- * If the robot is disabled or communications is lost, the autonomous task
- * will be stopped. Re-enabling the robot will restart the task, not re-start it
- * from where it left off.
- */
 void autonomous() {}
 
+int sgn(int val) {
+    if (val > 0) return 1;
+    if (val < 0) return -1;
+    return 0;
+}
+
+
+//struct for containing slew rate information for any motors that need to use it
+typedef struct {
+  int motorValue;
+  float slewRate;
+  float slewThreshold;
+} slewController;
+
+//program time counter for calculating delta T
+int timeCounter = pros::millis();
+int deltaT;
+
+
 /**
- * Runs the operator control code. This function will be started in its own task
- * with the default priority and stack size whenever the robot is enabled via
- * the Field Management System or the VEX Competition Switch in the operator
- * control mode.
+ * Create a slew controller for a motor
  *
- * If no competition control is connected, this function will run immediately
- * following initialize().
+ * @param port  the motor port to use as a number (0 - 10)
  *
- * If the robot is disabled or communications is lost, the
- * operator control task will be stopped. Re-enabling the robot will restart the
- * task, not resume it from where it left off.
- */
+ * returns a new and configured slew controller strucutre
+**/
+slewController 
+slewFactory (float slewRate, float slewThreshold) {
+  slewController s;
+  s.slewRate = slewRate;
+  s.slewThreshold = slewThreshold;
+  return s;
+}
+
+
+/**
+ * Update the output value of a slew rate controller
+ *
+ * @param driveSet  the desired speed state
+ * @param s  the slew controller structure to adjust
+ *
+ * returns the updated slew controller structure
+ **/
+slewController
+setSlew (int driveSet, slewController s) {
+  if (driveSet == s.motorValue) {
+    return s;
+  }
+
+  if (fabs (driveSet - s.motorValue) < s.slewThreshold || fabs (driveSet - s.motorValue) <= 1) {
+    s.motorValue = driveSet;
+  } else {
+    float motorAdd = (float) s.slewRate * (float) deltaT / 1000.0;
+    if (fabs (motorAdd) < 1) {
+      //always ramp by 1 so that the output doesn't get stuck
+      motorAdd = 1;
+    }
+    
+    int sign = sgn(driveSet - s.motorValue);
+    s.motorValue += sign * motorAdd;
+  } 
+
+  return s;
+}
+
 void opcontrol() {
-	pros::Controller master(pros::E_CONTROLLER_MASTER);
+  /* Configure slew controllers to have a rate of 
+     12.7 units per second with a threshold of 30 units.
+  */
+  slewController leftSlew = slewFactory (12.70, 30);
+  slewController rightSlew = slewFactory (12.70, 30);
 
-	while (true) {
-		int left = master.get_analog(ANALOG_LEFT_Y);
-		int right = master.get_analog(ANALOG_RIGHT_Y);
+  while (true) {
+    //keep at start of while loop, this keeps track of time each loop takes
+    deltaT = pros::millis(); - timeCounter;
+    timeCounter = pros::millis();
 
-		leftWheels = left;
-		rightWheels = right;
+    int driveLeftSet = master.get_analog(ANALOG_LEFT_Y);
+    int driveRightSet = master.get_analog(ANALOG_RIGHT_Y);
 
-		pros::delay(20);
-	}
+    leftSlew = setSlew (driveLeftSet, leftSlew);
+    rightSlew = setSlew (driveRightSet, rightSlew);
+
+    if (master.is_connected()) {
+        leftWheels = leftSlew.motorValue * master.get_analog(ANALOG_LEFT_Y);
+        rightWheels = rightSlew.motorValue * master.get_analog(ANALOG_RIGHT_Y);
+    }
+    pros::delay(5);
+  }
 }
