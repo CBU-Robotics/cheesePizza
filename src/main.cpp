@@ -1,4 +1,6 @@
 #include "main.h"
+int IMU_PORT = 14;
+
 
 /**
  * Runs initialization code. This occurs as soon as the program is started.
@@ -8,6 +10,7 @@
  */
 void initialize() {
 	pros::lcd::initialize();
+  
 }
 
 /**
@@ -54,15 +57,32 @@ void autonomous() {}
  * operator control task will be stopped. Re-enabling the robot will restart the
  * task, not resume it from where it left off.
  */
+
+
+
 void opcontrol() {
 	pros::Controller master(pros::E_CONTROLLER_MASTER);
+  pros::Imu imu_sensor(IMU_PORT);
+
+  imu_sensor.reset();
+  int time = pros::millis();
+  int iter = 0;
+
+  while (imu_sensor.is_calibrating()) {
+    pros::lcd::print(0, "IMU calibrating... %d\n", iter);
+    iter += 10;
+    pros::delay(10);
+  }
 
 	while (true) {
+    
 		int left = master.get_analog(ANALOG_LEFT_Y);
 		int right = master.get_analog(ANALOG_RIGHT_Y);
 
 		leftWheels = left;
 		rightWheels = right;
+
+    pros::lcd::print(1, "IMU get rotation: %d degrees\n", (int) imu_sensor.get_rotation());
 
 		pros::delay(20);
 	}
