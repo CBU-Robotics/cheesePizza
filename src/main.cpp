@@ -65,14 +65,6 @@ void opcontrol() {
   pros::Imu imu_sensor(IMU_PORT);
 
   imu_sensor.reset();
-  int time = pros::millis();
-  int iter = 0;
-
-  while (imu_sensor.is_calibrating()) {
-    pros::lcd::print(0, "IMU calibrating... %d\n", iter);
-    iter += 10;
-    pros::delay(10);
-  }
 
 	while (true) {
     
@@ -82,8 +74,21 @@ void opcontrol() {
 		leftWheels = left;
 		rightWheels = right;
 
-    pros::lcd::print(1, "IMU get rotation: %d degrees\n", (int) imu_sensor.get_rotation());
+    pros::c::imu_gyro_s_t gyro = imu_sensor.get_gyro_rate();
 
+    if (gyro.z == 0) {
+        int time = pros::millis();
+        int iter = 0;
+      imu_sensor.reset();
+        while (imu_sensor.is_calibrating()) {
+        pros::lcd::print(0, "IMU calibrating... %d\n", iter);
+        iter += 10;
+        pros::delay(10);
+  }
+    }
+
+    pros::lcd::print(1, "IMU get rotation: %d degrees\n", (int) imu_sensor.get_rotation());
+    pros::lcd::print(2, "IMU gyro values: {x: %f, y: %f, z: %f}\n", (int) gyro.x, (int) gyro.y, (int) gyro.z);
 		pros::delay(20);
 	}
 }
