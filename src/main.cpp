@@ -1,69 +1,117 @@
 #include "main.h"
+#include <vector>
+#include <iostream>
+
+const int TOP_LEFT_MOTOR_PORT = 12;
+const int TOP_RIGHT_MOTOR_PORT = 1;
+const int BOTTOM_LEFT_MOTOR_PORT = 20;
+const int BOTTOM_RIGHT_MOTOR_PORT = 10;
+
+const int INTERTIAL_SENSOR_PORT = 4;
+const int VEX_MAX_VOLTAGE = 12000; // Don't use
+const int MAX_VOLTAGE = VEX_MAX_VOLTAGE - 4000;
+const int ANALOG_MAX_VALUE = 127;
+const double INTERPOLATION_MAGNITUDE = 0.01;
+const int INTERPOLATION_ERROR = 30;
 
 /**
- * Runs initialization code. This occurs as soon as the program is started.
+ * @brief Linearly interpolates between two values.
  *
- * All other competition modes are blocked by initialize; it is recommended
- * to keep execution time for this mode under a few seconds.
+ * This function performs linear interpolation (lerp) between an initial value
+ * and a target value based on a specified magnitude.
+ *
+ * @param initial_value The starting value.
+ * @param target_value The target value to interpolate towards.
+ * @param magnitude The magnitude of interpolation, typically in the range [0, 1].
+ * @return The interpolated value as a 32-bit signed integer.
  */
+std::int32_t lerp(std::uint32_t initial_value, std::int32_t target_value, double magnitude) {
+	return static_cast<std::int32_t>((target_value - initial_value) * magnitude) + initial_value;
+}
+
+/**
+ * @brief Linearly interpolates motor group voltage to a target value.
+ *
+ * Performs linear interpolation (lerp) of the voltage for a given motor group
+ * towards a specified target voltage using a set interpolation magnitude.
+ *
+ * @param motor_group A reference to the `pros::Motor_Group` object to control.
+ * @param target_voltage The desired target voltage for the motor group.
+ */
+void interpolate_motor_voltage(pros::Motor_Group& motor_group, std::int32_t target_voltage) {
+	std::vector<std::uint32_t> voltages = motor_group.get_voltages();
+
+	if (abs(voltages[0] - target_voltage) < INTERPOLATION_ERROR) {
+		motor_group.move_voltage(target_voltage);
+	}
+	else {
+		motor_group.move_voltage(lerp(voltages[0], target_voltage, INTERPOLATION_MAGNITUDE));
+	}
+}
+
+
 void initialize() {
 	pros::lcd::initialize();
 }
 
-/**
- * Runs while the robot is in the disabled state of Field Management System or
- * the VEX Competition Switch, following either autonomous or opcontrol. When
- * the robot is enabled, this task will exit.
- */
 void disabled() {}
 
-/**
- * Runs after initialize(), and before autonomous when connected to the Field
- * Management System or the VEX Competition Switch. This is intended for
- * competition-specific initialization routines, such as an autonomous selector
- * on the LCD.
- *
- * This task will exit when the robot is enabled and autonomous or opcontrol
- * starts.
- */
 void competition_initialize() {}
 
-/**
- * Runs the user autonomous code. This function will be started in its own task
- * with the default priority and stack size whenever the robot is enabled via
- * the Field Management System or the VEX Competition Switch in the autonomous
- * mode. Alternatively, this function may be called in initialize or opcontrol
- * for non-competition testing purposes.
- *
- * If the robot is disabled or communications is lost, the autonomous task
- * will be stopped. Re-enabling the robot will restart the task, not re-start it
- * from where it left off.
- */
 void autonomous() {}
 
-/**
- * Runs the operator control code. This function will be started in its own task
- * with the default priority and stack size whenever the robot is enabled via
- * the Field Management System or the VEX Competition Switch in the operator
- * control mode.
- *
- * If no competition control is connected, this function will run immediately
- * following initialize().
- *
- * If the robot is disabled or communications is lost, the
- * operator control task will be stopped. Re-enabling the robot will restart the
- * task, not resume it from where it left off.
- */
 void opcontrol() {
+	// Controller and motor setup
 	pros::Controller master(pros::E_CONTROLLER_MASTER);
+	pros::Motor top_left_motor(TOP_LEFT_MOTOR_PORT, pros::E_MOTOR_GEAR_200, false);
+	pros::Motor top_right_motor(TOP_RIGHT_MOTOR_PORT, pros::E_MOTOR_GEAR_200, true);
+	pros::Motor bottom_left_motor(BOTTOM_LEFT_MOTOR_PORT, pros::E_MOTOR_GEAR_200, false);
+	pros::Motor bottom_right_motor(BOTTOM_RIGHT_MOTOR_PORT, pros::E_MOTOR_GEAR_200, true);
+
+	// Motor groups and brake modes
+	pros::Motor_Group left_group({ top_left_motor, bottom_left_motor });
+	pros::Motor_Group right_group({ top_right_motor, bottom_right_motor });
+	left_group.set_brake_modes(pros::E_MOTOR_BRAKE_BRAKE);
+	right_group.set_brake_modes(pros::E_MOTOR_BRAKE_BRAKE);
 
 	while (true) {
-		int left = master.get_analog(ANALOG_LEFT_Y);
-		int right = master.get_analog(ANALOG_RIGHT_Y);
+		// Joystick input
+		int x = master.get_analog(ANALOG_RIGHT_X);
+		int y = master.get_analog(ANALOG_RIGHT_Y);
 
-		leftWheels = left;
-		rightWheels = right;
+		if (x == 0 && y == 0) {
+			// Stop motors if joystick is at the center
+			// interpolate_motor_voltage(left_group, 0);
+			// interpolate_motor_voltage(right_group, 0);
+			left_group.move_voltage(0);
+			right_group.move_voltage(0);
+			pros::lcd::print(0, "%d %d %d", 0, 0, 0); // LCD display
+		}
+		else {
+			// Calculate magnitude based on normalized x and y
+			double normalized_x = static_cast<double>(x) / 127.0;
+			double normalized_y = static_cast<double>(y) / 127.0;
+			double magnitude = sqrt(normalized_x * normalized_x + normalized_y * normalized_y);
 
-		pros::delay(20);
+			// Calculate motor voltages based on joystick input
+			double angle = atan2(y, x);
+			double voltage_x = cos(angle) * MAX_VOLTAGE * magnitude;
+			double voltage_y = sin(angle) * MAX_VOLTAGE * magnitude;
+
+			// Distribute voltages for forward/backward and turning
+			int voltage_left = voltage_y + voltage_x;
+			int voltage_right = voltage_y - voltage_x;
+
+			// Apply interpolated motor voltages
+			// interpolate_motor_voltage(left_group, voltage_left);
+			// interpolate_motor_voltage(right_group, voltage_right);
+			left_group.move_voltage(voltage_left);
+			right_group.move_voltage(voltage_right);
+
+			// LCD display for debugging
+			pros::lcd::print(0, "%d %d %d", static_cast<int>(angle), static_cast<int>(voltage_x), static_cast<int>(voltage_y));
+		}
+
+		pros::delay(20); // Delay for loop iteration
 	}
 }
