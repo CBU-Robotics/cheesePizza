@@ -16,6 +16,17 @@ const int ANALOG_MAX_VALUE = 127;
 const double INTERPOLATION_MAGNITUDE = 0.01;
 const int INTERPOLATION_ERROR = 30;
 
+// Controller and motor setup
+pros::Controller master(pros::E_CONTROLLER_MASTER);
+pros::Motor top_left_motor(TOP_LEFT_MOTOR_PORT, pros::E_MOTOR_GEAR_200, false);
+pros::Motor top_right_motor(TOP_RIGHT_MOTOR_PORT, pros::E_MOTOR_GEAR_200, true);
+pros::Motor bottom_left_motor(BOTTOM_LEFT_MOTOR_PORT, pros::E_MOTOR_GEAR_200, false);
+pros::Motor bottom_right_motor(BOTTOM_RIGHT_MOTOR_PORT, pros::E_MOTOR_GEAR_200, true);
+
+// Motor groups and brake modes
+pros::Motor_Group left_group({ top_left_motor, bottom_left_motor });
+pros::Motor_Group right_group({ top_right_motor, bottom_right_motor });
+
 /**
  * @brief Linearly interpolates between two values.
  *
@@ -51,10 +62,10 @@ void interpolate_motor_voltage(pros::Motor_Group& motor_group, std::int32_t targ
 	}
 }
 
-
 void initialize() {
 	pros::lcd::initialize();
-  
+	left_group.set_brake_modes(pros::E_MOTOR_BRAKE_BRAKE);
+	right_group.set_brake_modes(pros::E_MOTOR_BRAKE_BRAKE);
 }
 
 void disabled() {}
@@ -64,19 +75,7 @@ void competition_initialize() {}
 void autonomous() {}
 
 void opcontrol() {
-	// Controller and motor setup
   imu_sensor.reset();
-	pros::Motor top_left_motor(TOP_LEFT_MOTOR_PORT, pros::E_MOTOR_GEAR_200, false);
-	pros::Motor top_right_motor(TOP_RIGHT_MOTOR_PORT, pros::E_MOTOR_GEAR_200, true);
-	pros::Motor bottom_left_motor(BOTTOM_LEFT_MOTOR_PORT, pros::E_MOTOR_GEAR_200, false);
-	pros::Motor bottom_right_motor(BOTTOM_RIGHT_MOTOR_PORT, pros::E_MOTOR_GEAR_200, true);
-
-	// Motor groups and brake modes
-	pros::Motor_Group left_group({ top_left_motor, bottom_left_motor });
-	pros::Motor_Group right_group({ top_right_motor, bottom_right_motor });
-	left_group.set_brake_modes(pros::E_MOTOR_BRAKE_BRAKE);
-	right_group.set_brake_modes(pros::E_MOTOR_BRAKE_BRAKE);
-
 	while (true) {
 		// Joystick input
 		int x = master.get_analog(ANALOG_RIGHT_X);
