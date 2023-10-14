@@ -13,6 +13,7 @@ const int MAX_VOLTAGE = VEX_MAX_VOLTAGE - 4000;
 const int ANALOG_MAX_VALUE = 127;
 const double INTERPOLATION_MAGNITUDE = 0.01;
 const int INTERPOLATION_ERROR = 30;
+const double pi = 3.14159265358979323846;
 
 // Controller and motor setup
 pros::Controller master(pros::E_CONTROLLER_MASTER);
@@ -24,6 +25,22 @@ pros::Motor bottom_right_motor(BOTTOM_RIGHT_MOTOR_PORT, pros::E_MOTOR_GEAR_200, 
 // Motor groups and brake modes
 pros::Motor_Group left_group({ top_left_motor, bottom_left_motor });
 pros::Motor_Group right_group({ top_right_motor, bottom_right_motor });
+
+// Encoder
+pros::ADIEncoder encoder ('A', 'B');
+
+void move_distance(double voltage, double diameter, double distance) {
+	// need to delay on start up
+
+	encoder.reset();
+
+	while((diameter * pi * (abs((int)encoder.get_value()) / 360)) < distance) {
+		left_group.move_voltage(voltage);
+		right_group.move_voltage(voltage);
+	}
+	left_group.move_voltage(0);
+	right_group.move_voltage(0);
+}
 
 /**
  * @brief Linearly interpolates between two values.
@@ -73,7 +90,6 @@ void competition_initialize() {}
 void autonomous() {}
 
 void opcontrol() {
-
 	while (true) {
 		// Joystick input
 		int x = master.get_analog(ANALOG_RIGHT_X);
