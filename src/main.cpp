@@ -1,4 +1,6 @@
 #include "main.h"
+#include "subsystemFiles/globals.cpp"
+#include "subsystemFiles/drive.cpp"
 #include <vector>
 #include <iostream>
 
@@ -14,6 +16,7 @@ const int ANALOG_MAX_VALUE = 127;
 const double INTERPOLATION_MAGNITUDE = 0.01;
 const int INTERPOLATION_ERROR = 30;
 const double pi = 3.14159265358979323846;
+const int IMU_PORT = 14;
 
 // Controller and motor setup
 pros::Controller master(pros::E_CONTROLLER_MASTER);
@@ -40,6 +43,29 @@ void move_distance(double voltage, double diameter, double distance) {
 	}
 	left_group.move_voltage(0);
 	right_group.move_voltage(0);
+}
+
+// Sensors
+pros::Imu imu_sensor(14);
+
+
+bool autoTurn(int degrees, int voltage) {
+    int degreesTurned = 0;
+    int initialIntertialRotation = (int) imu_sensor.get_rotation();
+  	while (!((degreesTurned < degrees + 3) && (degreesTurned > degrees - 3))) {
+      pros::lcd::print(2, "Degrees turned: %d\n", degreesTurned);
+      degreesTurned = abs(initialIntertialRotation - (int) imu_sensor.get_rotation());
+    if (voltage > 0) {
+        left_group.move_voltage(voltage);
+    } else {
+        right_group.move_voltage(-voltage);
+    }
+    pros::lcd::print(3, "IMU get rotation: %d degrees\n", (int) imu_sensor.get_rotation());
+		pros::delay(20);
+	}
+  left_group.brake();
+  right_group.brake();
+  return false;
 }
 
 /**
@@ -91,7 +117,7 @@ void autonomous() {}
 
 void opcontrol() {
 	while (true) {
-		// Joystick input
+// Joystick input
 		int x = master.get_analog(ANALOG_RIGHT_X);
 		int y = master.get_analog(ANALOG_RIGHT_Y);
 
