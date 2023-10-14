@@ -1,6 +1,6 @@
 #include "main.h"
-int IMU_PORT = 14;
-
+#include "subsystemFiles/globals.cpp"
+#include "subsystemFiles/drive.cpp"
 
 /**
  * Runs initialization code. This occurs as soon as the program is started.
@@ -58,37 +58,11 @@ void autonomous() {}
  * task, not resume it from where it left off.
  */
 
-
-
 void opcontrol() {
-	pros::Controller master(pros::E_CONTROLLER_MASTER);
-  pros::Imu imu_sensor(IMU_PORT);
-
   imu_sensor.reset();
 
 	while (true) {
-    
-		int left = master.get_analog(ANALOG_LEFT_Y);
-		int right = master.get_analog(ANALOG_RIGHT_Y);
-
-		leftWheels = left;
-		rightWheels = right;
-
-    pros::c::imu_gyro_s_t gyro = imu_sensor.get_gyro_rate();
-
-    if (gyro.z == 0) {
-        int time = pros::millis();
-        int iter = 0;
-      imu_sensor.reset();
-        while (imu_sensor.is_calibrating()) {
-        pros::lcd::print(0, "IMU calibrating... %d\n", iter);
-        iter += 10;
-        pros::delay(10);
-  }
-    }
-
-    pros::lcd::print(1, "IMU get rotation: %d degrees\n", (int) imu_sensor.get_rotation());
-    pros::lcd::print(2, "IMU gyro values: {x: %f, y: %f, z: %f}\n", (int) gyro.x, (int) gyro.y, (int) gyro.z);
+    autoTurn(50, 4000);
 		pros::delay(20);
 	}
 }
