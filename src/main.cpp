@@ -15,6 +15,7 @@ const int MAX_VOLTAGE = VEX_MAX_VOLTAGE - 4000;
 const int ANALOG_MAX_VALUE = 127;
 const double INTERPOLATION_MAGNITUDE = 0.01;
 const int INTERPOLATION_ERROR = 30;
+const double pi = 3.14159265358979323846;
 const int IMU_PORT = 14;
 
 // Controller and motor setup
@@ -27,6 +28,22 @@ pros::Motor bottom_right_motor(BOTTOM_RIGHT_MOTOR_PORT, pros::E_MOTOR_GEAR_200, 
 // Motor groups and brake modes
 pros::Motor_Group left_group({ top_left_motor, bottom_left_motor });
 pros::Motor_Group right_group({ top_right_motor, bottom_right_motor });
+
+// Encoder
+pros::ADIEncoder encoder ('A', 'B');
+
+void move_distance(double voltage, double diameter, double distance) {
+	// need to delay on start up
+
+	encoder.reset();
+
+	while((diameter * pi * (abs((int)encoder.get_value()) / 360)) < distance) {
+		left_group.move_voltage(voltage);
+		right_group.move_voltage(voltage);
+	}
+	left_group.move_voltage(0);
+	right_group.move_voltage(0);
+}
 
 // Sensors
 pros::Imu imu_sensor(14);
@@ -99,57 +116,44 @@ void competition_initialize() {}
 void autonomous() {}
 
 void opcontrol() {
-  imu_sensor.reset();
-   int iter = 0;
-  while (imu_sensor.is_calibrating()) {
-        pros::lcd::print(0, "IMU calibrating... %d\n", iter);
-        iter += 10;
-        pros::delay(10);}
-        autoTurn(50, 4000);
-        autoTurn(50, -4000);
-  while (true) {
-    
-    pros::delay(20);
-  }
-	// while (true) {
-    
-	// 	// Joystick input
-	// 	int x = master.get_analog(ANALOG_RIGHT_X);
-	// 	int y = master.get_analog(ANALOG_RIGHT_Y);
+	while (true) {
+// Joystick input
+		int x = master.get_analog(ANALOG_RIGHT_X);
+		int y = master.get_analog(ANALOG_RIGHT_Y);
 
-	// 	if (x == 0 && y == 0) {
-	// 		// Stop motors if joystick is at the center
-	// 		// interpolate_motor_voltage(left_group, 0);
-	// 		// interpolate_motor_voltage(right_group, 0);
-	// 		left_group.move_voltage(0);
-	// 		right_group.move_voltage(0);
-	// 		pros::lcd::print(0, "%d %d %d", 0, 0, 0); // LCD display
-	// 	}
-	// 	else {
-	// 		// Calculate magnitude based on normalized x and y
-	// 		double normalized_x = static_cast<double>(x) / 127.0;
-	// 		double normalized_y = static_cast<double>(y) / 127.0;
-	// 		double magnitude = sqrt(normalized_x * normalized_x + normalized_y * normalized_y);
+		if (x == 0 && y == 0) {
+			// Stop motors if joystick is at the center
+			// interpolate_motor_voltage(left_group, 0);
+			// interpolate_motor_voltage(right_group, 0);
+			left_group.move_voltage(0);
+			right_group.move_voltage(0);
+			pros::lcd::print(0, "%d %d %d", 0, 0, 0); // LCD display
+		}
+		else {
+			// Calculate magnitude based on normalized x and y
+			double normalized_x = static_cast<double>(x) / 127.0;
+			double normalized_y = static_cast<double>(y) / 127.0;
+			double magnitude = sqrt(normalized_x * normalized_x + normalized_y * normalized_y);
 
-	// 		// Calculate motor voltages based on joystick input
-	// 		double angle = atan2(y, x);
-	// 		double voltage_x = cos(angle) * MAX_VOLTAGE * magnitude;
-	// 		double voltage_y = sin(angle) * MAX_VOLTAGE * magnitude;
+			// Calculate motor voltages based on joystick input
+			double angle = atan2(y, x);
+			double voltage_x = cos(angle) * MAX_VOLTAGE * magnitude;
+			double voltage_y = sin(angle) * MAX_VOLTAGE * magnitude;
 
-	// 		// Distribute voltages for forward/backward and turning
-	// 		int voltage_left = voltage_y + voltage_x;
-	// 		int voltage_right = voltage_y - voltage_x;
+			// Distribute voltages for forward/backward and turning
+			int voltage_left = voltage_y + voltage_x;
+			int voltage_right = voltage_y - voltage_x;
 
-	// 		// Apply interpolated motor voltages
-	// 		// interpolate_motor_voltage(left_group, voltage_left);
-	// 		// interpolate_motor_voltage(right_group, voltage_right);
-	// 		left_group.move_voltage(voltage_left);
-	// 		right_group.move_voltage(voltage_right);
+			// Apply interpolated motor voltages
+			// interpolate_motor_voltage(left_group, voltage_left);
+			// interpolate_motor_voltage(right_group, voltage_right);
+			left_group.move_voltage(voltage_left);
+			right_group.move_voltage(voltage_right);
 
-	// 		// LCD display for debugging
-	// 		pros::lcd::print(0, "%d %d %d", static_cast<int>(angle), static_cast<int>(voltage_x), static_cast<int>(voltage_y));
-	// 	}
+			// LCD display for debugging
+			pros::lcd::print(0, "%d %d %d", static_cast<int>(angle), static_cast<int>(voltage_x), static_cast<int>(voltage_y));
+		}
 
-	// 	pros::delay(20); // Delay for loop iteration
-	// }
+		pros::delay(20); // Delay for loop iteration
+	}
 }
