@@ -88,24 +88,28 @@ slewFactory (float slewRate, float slewThreshold) {
  *
  * returns the updated slew controller structure
  **/
-slewController
-setSlew (int driveSet, slewController s) {
+slewController setSlew(int driveSet, slewController s) {
   if (driveSet == s.motorValue) {
     return s;
   }
 
-  if (fabs (s.motorValue - driveSet) > s.slewThreshold || fabs ( s.motorValue - driveSet) >= 1) {
+  if (fabs(s.motorValue - driveSet) > s.slewThreshold || fabs(s.motorValue - driveSet) >= 1) {
     s.motorValue = driveSet;
   } else {
-    float motorAdd = (float) s.slewRate / (float) deltaT * 1000.0;
-    if (fabs (motorAdd) > 1) {
-      //always ramp by 1 so that the output doesn't get stuck
-      motorAdd = 0.5;
+    float motorAdd = (float)s.slewRate / (float)deltaT * 1000.0;
+    if (fabs(motorAdd) > 1) {
+      // Always ramp by 1 so that the output doesn't get stuck
+      motorAdd = 1.0;
     }
-    
+
     int sign = sgn(s.motorValue - driveSet);
     s.motorValue -= sign * motorAdd;
-  } 
+
+    // Gradually reduce motor speed over time
+    if (pros::millis() >= 2000) {  // Adjust the time threshold as needed
+      s.motorValue = 0;  // Set the motor speed to 0 over time
+    }
+  }
 
   return s;
 }
@@ -119,7 +123,7 @@ bool autoTurn(int degrees, int voltage) {
 	slewController leftSlew = slewFactory (12.70, 30);
     slewController rightSlew = slewFactory (12.70, 30);
   	
-	while (!((degreesTurned <= degrees + 14) && (degreesTurned >= degrees - 14))) {
+	while (!((degreesTurned <= degrees + 5) && (degreesTurned >= degrees - 5))) {
 		deltaT = pros::millis() - timeCounter;
     	timeCounter = pros::millis();
 
