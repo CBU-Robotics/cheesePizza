@@ -116,10 +116,10 @@ pros::Imu imu_sensor(14);
 bool autoTurn(int degrees, int voltage) {
     int degreesTurned = 0;
     int initialIntertialRotation = (int) imu_sensor.get_rotation();
-	slewController leftSlew = slewFactory (13, 30);
-  slewController rightSlew = slewFactory (13, 30);
+	slewController leftSlew = slewFactory (3, 3);
+  slewController rightSlew = slewFactory (3, 3);
   	
-	while (!((degreesTurned < degrees + 3) && (degreesTurned > degrees - 3))) {
+	while (!((degreesTurned <= degrees + 10) && (degreesTurned >= degrees - 10))) {
 		deltaT = pros::millis() - timeCounter;
     	timeCounter = pros::millis();
 
