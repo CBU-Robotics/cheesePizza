@@ -7,7 +7,7 @@
 const int TOP_LEFT_MOTOR_PORT = 12;
 const int TOP_RIGHT_MOTOR_PORT = 1;
 const int BOTTOM_LEFT_MOTOR_PORT = 20;
-const int BOTTOM_RIGHT_MOTOR_PORT = 10;
+const int BOTTOM_RIGHT_MOTOR_PORT = 9;
 
 const int INTERTIAL_SENSOR_PORT = 4;
 const int VEX_MAX_VOLTAGE = 12000; // Don't use
@@ -45,6 +45,70 @@ void move_distance(double voltage, double diameter, double distance) {
 	right_group.move_voltage(0);
 }
 
+int sgn(int val) {
+    if (val > 0) return 1;
+    if (val < 0) return -1;
+    return 0;
+}
+
+
+//struct for containing slew rate information for any motors that need to use it
+typedef struct {
+  int motorValue;
+  float slewRate;
+  float slewThreshold;
+} slewController;
+
+//program time counter for calculating delta T
+int timeCounter = pros::millis();
+int deltaT;
+
+
+/**
+ * Create a slew controller for a motor
+ *
+ * @param port  the motor port to use as a number (0 - 10)
+ *
+ * returns a new and configured slew controller strucutre
+**/
+slewController 
+slewFactory (float slewRate, float slewThreshold) {
+  slewController s;
+  s.slewRate = slewRate;
+  s.slewThreshold = slewThreshold;
+  return s;
+}
+
+
+/**
+ * Update the output value of a slew rate controller
+ *
+ * @param driveSet  the desired speed state
+ * @param s  the slew controller structure to adjust
+ *
+ * returns the updated slew controller structure
+ **/
+slewController
+setSlew (int driveSet, slewController s) {
+  if (driveSet == s.motorValue) {
+    return s;
+  }
+
+  if (fabs (s.motorValue - driveSet) > s.slewThreshold || fabs ( s.motorValue - driveSet) >= 1) {
+    s.motorValue = driveSet;
+  } else {
+    float motorAdd = (float) s.slewRate / (float) deltaT * 1000.0;
+    if (fabs (motorAdd) > 1) {
+      //always ramp by 1 so that the output doesn't get stuck
+      motorAdd = 0.5;
+    }
+    
+    int sign = sgn(s.motorValue - driveSet);
+    s.motorValue -= sign * motorAdd;
+  } 
+
+  return s;
+}
 // Sensors
 pros::Imu imu_sensor(14);
 
@@ -52,19 +116,33 @@ pros::Imu imu_sensor(14);
 bool autoTurn(int degrees, int voltage) {
     int degreesTurned = 0;
     int initialIntertialRotation = (int) imu_sensor.get_rotation();
-  	while (!((degreesTurned < degrees + 3) && (degreesTurned > degrees - 3))) {
+	slewController leftSlew = slewFactory (13, 30);
+  slewController rightSlew = slewFactory (13, 30);
+  	
+	while (!((degreesTurned < degrees + 3) && (degreesTurned > degrees - 3))) {
+		deltaT = pros::millis() - timeCounter;
+    	timeCounter = pros::millis();
+
       pros::lcd::print(2, "Degrees turned: %d\n", degreesTurned);
       degreesTurned = abs(initialIntertialRotation - (int) imu_sensor.get_rotation());
-    if (voltage > 0) {
-        left_group.move_voltage(voltage);
+
+	if (voltage > 0) {
+		leftSlew = setSlew(voltage, leftSlew);
+    	rightSlew = setSlew(-voltage, rightSlew);
+		left_group.move_voltage(leftSlew.motorValue);
+		right_group.move_voltage(rightSlew.motorValue);
     } else {
-        right_group.move_voltage(-voltage);
+		leftSlew = setSlew (voltage, leftSlew);
+    	rightSlew = setSlew (-voltage, rightSlew);
+		right_group.move_voltage(rightSlew.motorValue);
+		left_group.move_voltage(leftSlew.motorValue);
     }
-    pros::lcd::print(3, "IMU get rotation: %d degrees\n", (int) imu_sensor.get_rotation());
+    	pros::lcd::print(4, "IMU get rotation: %d degrees\n", (int) imu_sensor.get_rotation());
 		pros::delay(20);
 	}
   left_group.brake();
   right_group.brake();
+  pros::lcd::print(3, "Voltage: %d, %e", left_group.get_voltages()[0], left_group.get_voltages()[1]);
   return false;
 }
 
@@ -116,6 +194,18 @@ void competition_initialize() {}
 void autonomous() {}
 
 void opcontrol() {
+	imu_sensor.reset();
+	pros::delay(2000);
+	autoTurn(360, 3000);
+	pros::delay(20);
+	autoTurn(360, -3000);
+	pros::delay(20);
+	autoTurn(50, -3000);
+	pros::delay(20);
+	autoTurn(25, -3000);
+	pros::delay(20);
+	autoTurn(75, 3000);
+
 	while (true) {
 // Joystick input
 		int x = master.get_analog(ANALOG_RIGHT_X);
