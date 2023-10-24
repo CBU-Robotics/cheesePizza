@@ -34,10 +34,21 @@ pros::ADIEncoder encoder ('A', 'B');
 
 void move_distance(double voltage, double diameter, double distance) {
 	// need to delay on start up
-
 	encoder.reset();
 
 	while((diameter * pi * (abs((int)encoder.get_value()) / 360)) < distance) {
+		left_group.move_voltage(voltage);
+		right_group.move_voltage(voltage);
+	}
+	left_group.move_voltage(0);
+	right_group.move_voltage(0);
+}
+
+void move_distance_backup(double voltage, double diameter, double distance) {
+	// need to delay on start up
+	int default_position_all = top_left_motor.get_position() + bottom_left_motor.get_position() + top_right_motor.get_position() + bottom_right_motor.get_position();
+
+	while((diameter * pi * (abs((top_left_motor.get_position() + bottom_left_motor.get_position() + top_right_motor.get_position() + bottom_right_motor.get_position() - default_position_all) / 4) / 360)) < distance) {
 		left_group.move_voltage(voltage);
 		right_group.move_voltage(voltage);
 	}
