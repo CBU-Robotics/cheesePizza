@@ -7,7 +7,7 @@
 const int TOP_LEFT_MOTOR_PORT = 12;
 const int TOP_RIGHT_MOTOR_PORT = 1;
 const int BOTTOM_LEFT_MOTOR_PORT = 20;
-const int BOTTOM_RIGHT_MOTOR_PORT = 10;
+const int BOTTOM_RIGHT_MOTOR_PORT = 9;
 
 const int INTERTIAL_SENSOR_PORT = 4;
 const int VEX_MAX_VOLTAGE = 12000; // Don't use
@@ -44,16 +44,19 @@ void move_distance(double voltage, double diameter, double distance) {
 	right_group.move_voltage(0);
 }
 
-void move_distance_backup(double voltage, double diameter, double distance) {
-	// need to delay on start up
-	int default_position_all = top_left_motor.get_position() + bottom_left_motor.get_position() + top_right_motor.get_position() + bottom_right_motor.get_position();
+void move_distance_backup(int voltage, double diameter, double distance) {
+	// const int initial_oosition = top_left_motor.get_position();
+	// const int circumference = diameter * pi;
 
-	while((diameter * pi * (abs((top_left_motor.get_position() + bottom_left_motor.get_position() + top_right_motor.get_position() + bottom_right_motor.get_position() - default_position_all) / 4) / 360)) < distance) {
+	// need to delay on start up
+	int default_position_all = (int)top_left_motor.get_position();
+
+	while((diameter * pi * (abs(top_left_motor.get_position() - default_position_all / 4) / 360)) < distance) {
 		left_group.move_voltage(voltage);
 		right_group.move_voltage(voltage);
 	}
-	left_group.move_voltage(0);
-	right_group.move_voltage(0);
+	left_group.brake();
+	right_group.brake();
 }
 
 // Sensors
@@ -65,11 +68,13 @@ bool autoTurn(int degrees, int voltage) {
     int initialIntertialRotation = (int) imu_sensor.get_rotation();
   	while (!((degreesTurned < degrees + 3) && (degreesTurned > degrees - 3))) {
       pros::lcd::print(2, "Degrees turned: %d\n", degreesTurned);
-      degreesTurned = abs(initialIntertialRotation - (int) imu_sensor.get_rotation());
-    if (voltage > 0) {
-        left_group.move_voltage(voltage);
+      degreesTurned = initialIntertialRotation - (int) imu_sensor.get_rotation();
+    if (degrees < 0) {
+        left_group.move_voltage(-voltage);
+				right_group.move_voltage(voltage);
     } else {
-        right_group.move_voltage(-voltage);
+				left_group.move_voltage(voltage);
+				right_group.move_voltage(-voltage);
     }
     pros::lcd::print(3, "IMU get rotation: %d degrees\n", (int) imu_sensor.get_rotation());
 		pros::delay(20);
@@ -127,6 +132,9 @@ void competition_initialize() {}
 void autonomous() {}
 
 void opcontrol() {
+	pros::delay(5000);
+	move_distance_backup(5000, 4, 54);
+	/*
 	while (true) {
 // Joystick input
 		int x = master.get_analog(ANALOG_RIGHT_X);
@@ -167,4 +175,5 @@ void opcontrol() {
 
 		pros::delay(20); // Delay for loop iteration
 	}
+	*/
 }
