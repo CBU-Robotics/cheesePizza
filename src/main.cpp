@@ -30,30 +30,35 @@ pros::Motor_Group left_group({ top_left_motor, bottom_left_motor });
 pros::Motor_Group right_group({ top_right_motor, bottom_right_motor });
 
 // Encoder
-pros::ADIEncoder encoder ('A', 'B');
+pros::ADIEncoder encoder ('A', 'B', MOTOR_ENCODER_ROTATIONS);
 
 void move_distance(double voltage, double diameter, double distance) {
 	// need to delay on start up
 	encoder.reset();
 
-	while((diameter * pi * (abs((int)encoder.get_value()) / 360)) < distance) {
+	while((abs((int)encoder.get_value())) < distance / (diameter * pi)) {
 		left_group.move_voltage(voltage);
 		right_group.move_voltage(voltage);
 	}
-	left_group.move_voltage(0);
-	right_group.move_voltage(0);
+	left_group.brake();
+	right_group.brake();
 }
 
-void move_distance_backup(double voltage, double diameter, double distance) {
-	// need to delay on start up
-	int default_position_all = top_left_motor.get_position() + bottom_left_motor.get_position() + top_right_motor.get_position() + bottom_right_motor.get_position();
+void move_distance_motot(int voltage, double diameter, double distance) {
+	// const int initial_oosition = top_left_motor.get_position();
+	// const int circumference = diameter * pi;
 
-	while((diameter * pi * (abs((top_left_motor.get_position() + bottom_left_motor.get_position() + top_right_motor.get_position() + bottom_right_motor.get_position() - default_position_all) / 4) / 360)) < distance) {
+	// need to delay on start up
+	top_left_motor.set_encoder_units(MOTOR_ENCODER_ROTATIONS);
+
+	int original_position = top_left_motor.get_position();
+
+	while(abs(top_left_motor.get_position() - original_position) < distance / (pi * diameter)) {
 		left_group.move_voltage(voltage);
 		right_group.move_voltage(voltage);
 	}
-	left_group.move_voltage(0);
-	right_group.move_voltage(0);
+	left_group.brake();
+	right_group.brake();
 }
 
 // Sensors
