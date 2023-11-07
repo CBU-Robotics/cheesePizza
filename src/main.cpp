@@ -49,9 +49,11 @@ void move_distance_backup(int voltage, double diameter, double distance) {
 	// const int circumference = diameter * pi;
 
 	// need to delay on start up
-	int default_position_all = (int)top_left_motor.get_position();
+	top_left_motor.set_encoder_units(MOTOR_ENCODER_ROTATIONS);
 
-	while((diameter * pi * (abs(top_left_motor.get_position() - default_position_all / 4) / 360)) < distance) {
+	int original_position = top_left_motor.get_position();
+
+	while(abs(top_left_motor.get_position() - original_position) < distance / (pi * diameter)) {
 		left_group.move_voltage(voltage);
 		right_group.move_voltage(voltage);
 	}
@@ -132,9 +134,6 @@ void competition_initialize() {}
 void autonomous() {}
 
 void opcontrol() {
-	pros::delay(5000);
-	move_distance_backup(5000, 4, 54);
-	/*
 	while (true) {
 // Joystick input
 		int x = master.get_analog(ANALOG_RIGHT_X);
@@ -175,5 +174,4 @@ void opcontrol() {
 
 		pros::delay(20); // Delay for loop iteration
 	}
-	*/
 }
