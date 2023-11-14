@@ -7,7 +7,7 @@
 const int TOP_LEFT_MOTOR_PORT = 12;
 const int TOP_RIGHT_MOTOR_PORT = 1;
 const int BOTTOM_LEFT_MOTOR_PORT = 20;
-const int BOTTOM_RIGHT_MOTOR_PORT = 10;
+const int BOTTOM_RIGHT_MOTOR_PORT = 9;
 
 const int INTERTIAL_SENSOR_PORT = 4;
 const int VEX_MAX_VOLTAGE = 12000; // Don't use
@@ -18,12 +18,15 @@ const int INTERPOLATION_ERROR = 30;
 const double pi = 3.14159265358979323846;
 const int IMU_PORT = 14;
 
+//The amount the left side needs to catch up to the right
+const double offset = 1.06;
+
 // Controller and motor setup
 pros::Controller master(pros::E_CONTROLLER_MASTER);
-pros::Motor top_left_motor(TOP_LEFT_MOTOR_PORT, pros::E_MOTOR_GEAR_200, false);
-pros::Motor top_right_motor(TOP_RIGHT_MOTOR_PORT, pros::E_MOTOR_GEAR_200, true);
-pros::Motor bottom_left_motor(BOTTOM_LEFT_MOTOR_PORT, pros::E_MOTOR_GEAR_200, false);
-pros::Motor bottom_right_motor(BOTTOM_RIGHT_MOTOR_PORT, pros::E_MOTOR_GEAR_200, true);
+pros::Motor top_left_motor(TOP_LEFT_MOTOR_PORT, pros::E_MOTOR_GEAR_200, false, MOTOR_ENCODER_ROTATIONS);
+pros::Motor top_right_motor(TOP_RIGHT_MOTOR_PORT, pros::E_MOTOR_GEAR_200, true, MOTOR_ENCODER_ROTATIONS);
+pros::Motor bottom_left_motor(BOTTOM_LEFT_MOTOR_PORT, pros::E_MOTOR_GEAR_200, false, MOTOR_ENCODER_ROTATIONS);
+pros::Motor bottom_right_motor(BOTTOM_RIGHT_MOTOR_PORT, pros::E_MOTOR_GEAR_200, true, MOTOR_ENCODER_ROTATIONS);
 
 // Motor groups and brake modes
 pros::Motor_Group left_group({ top_left_motor, bottom_left_motor });
@@ -44,17 +47,22 @@ void move_distance(double voltage, double diameter, double distance) {
 	right_group.brake();
 }
 
-void move_distance_motot(int voltage, double diameter, double distance) {
-	// const int initial_oosition = top_left_motor.get_position();
-	// const int circumference = diameter * pi;
-
+void move_distance_motor(int voltage, double diameter, double distance) {
 	// need to delay on start up
-	top_left_motor.set_encoder_units(MOTOR_ENCODER_ROTATIONS);
+	int top_left = top_left_motor.get_position();
+	int top_right = top_right_motor.get_position();
+	int bottom_left = bottom_left_motor.get_position();
+	int bottom_right = bottom_right_motor.get_position();
+	int average = 0;
 
-	int original_position = top_left_motor.get_position();
-
-	while(abs(top_left_motor.get_position() - original_position) < distance / (pi * diameter)) {
-		left_group.move_voltage(voltage);
+	while(abs(average) < distance / (pi * diameter)) {
+		int tl_dif = top_left_motor.get_position() - top_left;
+		int tr_dif = top_right_motor.get_position() - top_right;
+		int bl_dif = bottom_left_motor.get_position() - bottom_left;
+		int br_dif = bottom_right_motor.get_position() - bottom_right;
+		average = (tl_dif + tr_dif + bl_dif + br_dif) / 4;
+		
+		left_group.move_voltage(voltage * offset);
 		right_group.move_voltage(voltage);
 	}
 	left_group.brake();
@@ -132,6 +140,9 @@ void competition_initialize() {}
 void autonomous() {}
 
 void opcontrol() {
+	pros::delay(5000);
+	move_distance_motor(5000, 4, 50);
+	/*
 	while (true) {
 // Joystick input
 		int x = master.get_analog(ANALOG_RIGHT_X);
@@ -172,4 +183,5 @@ void opcontrol() {
 
 		pros::delay(20); // Delay for loop iteration
 	}
+	*/
 }
