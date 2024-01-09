@@ -18,43 +18,51 @@ const int INTERPOLATION_ERROR = 30;
 const double pi = 3.14159265358979323846;
 const int IMU_PORT = 14;
 
+//The amount the left side needs to catch up to the right
+const double offset = 1.04;
+
 // Controller and motor setup
 pros::Controller master(pros::E_CONTROLLER_MASTER);
-pros::Motor top_left_motor(TOP_LEFT_MOTOR_PORT, pros::E_MOTOR_GEAR_200, false);
-pros::Motor top_right_motor(TOP_RIGHT_MOTOR_PORT, pros::E_MOTOR_GEAR_200, true);
-pros::Motor bottom_left_motor(BOTTOM_LEFT_MOTOR_PORT, pros::E_MOTOR_GEAR_200, false);
-pros::Motor bottom_right_motor(BOTTOM_RIGHT_MOTOR_PORT, pros::E_MOTOR_GEAR_200, true);
+pros::Motor top_left_motor(TOP_LEFT_MOTOR_PORT, pros::E_MOTOR_GEAR_200, false, MOTOR_ENCODER_ROTATIONS);
+pros::Motor top_right_motor(TOP_RIGHT_MOTOR_PORT, pros::E_MOTOR_GEAR_200, true, MOTOR_ENCODER_ROTATIONS);
+pros::Motor bottom_left_motor(BOTTOM_LEFT_MOTOR_PORT, pros::E_MOTOR_GEAR_200, false, MOTOR_ENCODER_ROTATIONS);
+pros::Motor bottom_right_motor(BOTTOM_RIGHT_MOTOR_PORT, pros::E_MOTOR_GEAR_200, true, MOTOR_ENCODER_ROTATIONS);
 
 // Motor groups and brake modes
 pros::Motor_Group left_group({ top_left_motor, bottom_left_motor });
 pros::Motor_Group right_group({ top_right_motor, bottom_right_motor });
 
 // Encoder
-pros::ADIEncoder encoder ('A', 'B');
+pros::ADIEncoder encoder ('A', 'B', MOTOR_ENCODER_ROTATIONS);
 
 void move_distance(double voltage, double diameter, double distance) {
 	// need to delay on start up
 	encoder.reset();
 
-	while((diameter * pi * (abs((int)encoder.get_value()) / 360)) < distance) {
+	while((abs((int)encoder.get_value())) < distance / (diameter * pi)) {
 		left_group.move_voltage(voltage);
 		right_group.move_voltage(voltage);
 	}
-	left_group.move_voltage(0);
-	right_group.move_voltage(0);
+	left_group.brake();
+	right_group.brake();
 }
 
-void move_distance_backup(int voltage, double diameter, double distance) {
-	// const int initial_oosition = top_left_motor.get_position();
-	// const int circumference = diameter * pi;
-
+void move(int voltage, double diameter, double distance) {
 	// need to delay on start up
-	top_left_motor.set_encoder_units(MOTOR_ENCODER_ROTATIONS);
+	double top_left = top_left_motor.get_position();
+	double top_right = top_right_motor.get_position();
+	double bottom_left = bottom_left_motor.get_position();
+	double bottom_right = bottom_right_motor.get_position();
+	double average = 0;
 
-	int original_position = top_left_motor.get_position();
-
-	while(abs(top_left_motor.get_position() - original_position) < distance / (pi * diameter)) {
-		left_group.move_voltage(voltage);
+	while(abs(average) < distance / (pi * diameter)) {
+		double tl_dif = top_left_motor.get_position() - top_left;
+		double tr_dif = top_right_motor.get_position() - top_right;
+		double bl_dif = bottom_left_motor.get_position() - bottom_left;
+		double br_dif = bottom_right_motor.get_position() - bottom_right;
+		average = (tl_dif + tr_dif + bl_dif + br_dif) / 4;
+		
+		left_group.move_voltage(voltage * offset);
 		right_group.move_voltage(voltage);
 	}
 	left_group.brake();
@@ -70,13 +78,11 @@ bool autoTurn(int degrees, int voltage) {
     int initialIntertialRotation = (int) imu_sensor.get_rotation();
   	while (!((degreesTurned < degrees + 3) && (degreesTurned > degrees - 3))) {
       pros::lcd::print(2, "Degrees turned: %d\n", degreesTurned);
-      degreesTurned = initialIntertialRotation - (int) imu_sensor.get_rotation();
-    if (degrees < 0) {
-        left_group.move_voltage(-voltage);
-				right_group.move_voltage(voltage);
+      degreesTurned = abs(initialIntertialRotation - (int) imu_sensor.get_rotation());
+    if (voltage > 0) {
+        left_group.move_voltage(voltage);
     } else {
-				left_group.move_voltage(voltage);
-				right_group.move_voltage(-voltage);
+        right_group.move_voltage(-voltage);
     }
     pros::lcd::print(3, "IMU get rotation: %d degrees\n", (int) imu_sensor.get_rotation());
 		pros::delay(20);
@@ -84,6 +90,35 @@ bool autoTurn(int degrees, int voltage) {
   left_group.brake();
   right_group.brake();
   return false;
+}
+
+void turn (int voltage, double diameter, int rotation, double length, double width) {
+	// need to delay on start up
+	double top_left = top_left_motor.get_position();
+	double top_right = top_right_motor.get_position();
+	double bottom_left = bottom_left_motor.get_position();
+	double bottom_right = bottom_right_motor.get_position();
+	double average = 0;
+
+	double percent = rotation / 360;
+	double big_diameter = sqrt(pow(length, 2) + pow (width, 2));
+	double circumference = pi * big_diameter;
+	double rotation_distance = percent * circumference / 2.25;
+	double distance = rotation_distance * sqrt(1 + pow(length / width, 2));
+
+	while(average < distance / (pi * diameter)) {
+		double tl_dif = top_left_motor.get_position() - top_left;
+		double tr_dif = top_right_motor.get_position() - top_right;
+		double bl_dif = bottom_left_motor.get_position() - bottom_left;
+		double br_dif = bottom_right_motor.get_position() - bottom_right;
+		average = (abs(tl_dif) + abs(tr_dif) + abs(bl_dif) + abs(br_dif)) / 4;
+		
+		left_group.move_voltage(voltage * offset);
+		right_group.move_voltage(-voltage);
+	}
+
+	left_group.brake();
+	right_group.brake();
 }
 
 /**
@@ -134,6 +169,9 @@ void competition_initialize() {}
 void autonomous() {}
 
 void opcontrol() {
+	pros::delay(5000);
+	turn(5000, 4, 360, 10.6, 10.2);
+	/*
 	while (true) {
 // Joystick input
 		int x = master.get_analog(ANALOG_RIGHT_X);
@@ -174,4 +212,5 @@ void opcontrol() {
 
 		pros::delay(20); // Delay for loop iteration
 	}
+	*/
 }
